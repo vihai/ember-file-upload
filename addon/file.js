@@ -56,6 +56,9 @@ function upload(file, url, opts, uploadFn) {
 
   let options = normalizeOptions(file, url, opts);
 
+  file.startTime = Date.now();
+  file.lastProgress = Date.now();
+
   let request = new HTTPRequest({
     withCredentials: options.withCredentials,
     label: `${options.method} ${file.name} to ${options.url}`,
@@ -74,6 +77,8 @@ function upload(file, url, opts, uploadFn) {
   request.onprogress = function (evt) {
     if (!evt.lengthComputable || evt.total === 0) return;
 
+    file.speed = (evt.loaded - file.loaded) / ((Date.now() - file.lastProgress) / 1000.0);
+    file.lastProgress = Date.now();
     file.loaded = evt.loaded;
     file.size = evt.total;
     file.progress = (evt.loaded / evt.total) * 100;
@@ -95,6 +100,7 @@ function upload(file, url, opts, uploadFn) {
     .then(
       function (result) {
         file.state = 'uploaded';
+        file.speed = file.size / ((Date.now() - file.startTime) / 1000.0);
         return result;
       },
       function (error) {
@@ -187,6 +193,24 @@ export default class File {
    */
   @tracked
   loaded = 0;
+
+  /**
+    @accessor startTime
+    @type {Date}
+    @default null
+    @readonly
+   */
+  @tracked
+  startTime = null;
+
+  /**
+    @accessor speed
+    @type {Number}
+    @default 0
+    @readonly
+   */
+  @tracked
+  speed = 0;
 
   /**
     @accessor progress
